@@ -30,7 +30,7 @@ func (ps *PubSub) Sub(f func(interface{}), mChanId string) {
 	}
 	ps.subers[chanId] = c
 	for a := range c {
-		f(a, chanId)
+		f(a)
 	}
 }
 func (ps *PubSub) UnSub(chanId string) {
