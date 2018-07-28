@@ -41,6 +41,12 @@ func (ps *PubSub) UnSub(chanId string) {
 		return
 	}
 }
+func (ps *PubSub) Close() {
+	for k, v := range ps.subers {
+		close(v)
+		delete(ps.subers, k)
+	}
+}
 func NewToken() string {
 	ct := time.Now().UnixNano()
 	h := md5.New()
