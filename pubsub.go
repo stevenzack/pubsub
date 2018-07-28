@@ -22,13 +22,13 @@ func (ps *PubSub) Pub(data interface{}) {
 		v <- data
 	}
 }
-func (ps *PubSub) Sub(f func(interface{}), mChanId string) {
+func (ps *PubSub) Sub(f func(interface{}), chanId string) {
 	c := make(chan interface{}, 1)
-	var chanId = mChanId
-	if chanId == "" {
-		chanId = NewToken()
+	var mchanId = chanId
+	if mchanId == "" {
+		mchanId = NewToken()
 	}
-	ps.subers[chanId] = c
+	ps.subers[mchanId] = c
 	for a := range c {
 		f(a)
 	}
