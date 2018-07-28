@@ -27,14 +27,16 @@ func main() {
 }
 func name(id int) {
 	counter := 0
-	ps.Sub(func(data interface{}, chanId string) {
+	chanId := pubsub.NewToken()
+	ps.Sub(func(data interface{}) {
 		counter++
 		if counter == id {
 			ps.UnSub(chanId)
 			return
 		}
 		fmt.Println(id, counter, data, chanId)
-	})
+	}, chanId)
 }
+
 ```
 
