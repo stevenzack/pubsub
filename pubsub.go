@@ -17,10 +17,17 @@ func NewPubSub() *PubSub {
 	ps.subers = make(map[string]chan string)
 	return ps
 }
-func (ps *PubSub) Pub(data []byte) {
+func (ps *PubSub) PubAll(data []byte) {
 	for _, v := range ps.subers {
 		v <- string(data)
 	}
+}
+func (p *PubSub) Pub(chanId string, data []byte) bool {
+	if suber, ok := p.subers[chanId]; ok {
+		suber <- string(data)
+		return true
+	}
+	return false
 }
 func (ps *PubSub) Sub(f func([]byte), chanId string) {
 	c := make(chan string, 1)
