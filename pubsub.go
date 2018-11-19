@@ -9,28 +9,28 @@ import (
 )
 
 type PubSub struct {
-	subers map[string]chan []byte
+	subers map[string]chan string
 }
 
 func NewPubSub() *PubSub {
 	ps := &PubSub{}
-	ps.subers = make(map[string]chan []byte)
+	ps.subers = make(map[string]chan string)
 	return ps
 }
 func (ps *PubSub) Pub(data []byte) {
 	for _, v := range ps.subers {
-		v <- data
+		v <- string(data)
 	}
 }
 func (ps *PubSub) Sub(f func([]byte), chanId string) {
-	c := make(chan []byte, 1)
+	c := make(chan string, 1)
 	var mchanId = chanId
 	if mchanId == "" {
 		mchanId = NewToken()
 	}
 	ps.subers[mchanId] = c
 	for a := range c {
-		f(a)
+		f([]byte(a))
 	}
 }
 func (ps *PubSub) UnSub(chanId string) {
