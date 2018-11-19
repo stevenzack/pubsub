@@ -9,21 +9,21 @@ import (
 )
 
 type PubSub struct {
-	subers map[string]chan interface{}
+	subers map[string]chan []byte
 }
 
 func NewPubSub() *PubSub {
 	ps := &PubSub{}
-	ps.subers = make(map[string]chan interface{})
+	ps.subers = make(map[string]chan []byte)
 	return ps
 }
-func (ps *PubSub) Pub(data interface{}) {
+func (ps *PubSub) Pub(data []byte) {
 	for _, v := range ps.subers {
 		v <- data
 	}
 }
-func (ps *PubSub) Sub(f func(interface{}), chanId string) {
-	c := make(chan interface{}, 1)
+func (ps *PubSub) Sub(f func([]byte), chanId string) {
+	c := make(chan []byte, 1)
 	var mchanId = chanId
 	if mchanId == "" {
 		mchanId = NewToken()
