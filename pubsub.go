@@ -5,53 +5,47 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 )
 
+var (
+	box  = make(map[string]map[string]chan string)
+	lock sync.Mutex
+)
+
 type PubSub struct {
-	subers map[string]chan string
+	token string
+	mc    chan string
 }
 
 func NewPubSub() *PubSub {
 	ps := &PubSub{}
-	ps.subers = make(map[string]chan string)
+	ps.token = NewToken()
 	return ps
 }
-func (ps *PubSub) PubAll(data []byte) {
-	for _, v := range ps.subers {
-		v <- string(data)
+func (ps *PubSub) Sub(chanId string, f func([]byte)) {
+	ps.mc = make(chan string, 1)
+	lock.Lock()
+	if v, ok := box[chanId]; ok {
+		if v == nil {
+			box[chanId] = make(map[string]chan string)
+		}
+	} else {
+		box[chanId] = make(map[string]chan string)
 	}
-}
-func (p *PubSub) Pub(chanId string, data []byte) bool {
-	if suber, ok := p.subers[chanId]; ok {
-		suber <- string(data)
-		return true
-	}
-	return false
-}
-func (ps *PubSub) Sub(f func([]byte), chanId string) {
-	c := make(chan string, 1)
-	var mchanId = chanId
-	if mchanId == "" {
-		mchanId = NewToken()
-	}
-	ps.subers[mchanId] = c
-	for a := range c {
-		f([]byte(a))
+	box[chanId][ps.token] = ps.mc
+	lock.Unlock()
+	for str := range ps.mc {
+		f([]byte(str))
 	}
 }
 func (ps *PubSub) UnSub(chanId string) {
-	v, ok := ps.subers[chanId]
-	if ok {
-		delete(ps.subers, chanId)
-		close(v)
-		return
-	}
-}
-func (ps *PubSub) Close() {
-	for k, v := range ps.subers {
-		close(v)
-		delete(ps.subers, k)
+	if v, ok := box[chanId]; ok && v != nil {
+		lock.Lock()
+		delete(box[chanId], ps.token)
+		lock.Unlock()
+		close(ps.mc)
 	}
 }
 func NewToken() string {
