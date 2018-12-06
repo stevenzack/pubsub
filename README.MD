@@ -5,38 +5,29 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/StevenZack/pubsub"
 )
 
-var ps = pubsub.NewPubSub()
-
 func main() {
-	go name(2)
-	go name(3)
-	go name(4)
+	go ls(0)
+	go ls(1)
+	go ls(2)
 	s := ""
 	for {
 		fmt.Scanf("%s", &s)
-		if s == "quit" {
-			break
-		}
-		ps.Pub(s)
+		pubsub.Pub("chan", s)
 	}
-	fmt.Println("waiting for exit signal")
-	fmt.Scanf("%s", &s)
 }
-func name(id int) {
-	counter := 0
-	chanId := pubsub.NewToken()
-	ps.Sub(func(data interface{}) {
-		counter++
-		if counter == id {
-			ps.UnSub(chanId)
-			return
-		}
-		fmt.Println(id, counter, data, chanId)
-	}, chanId)
+func ls(i int) {
+	chanId := "chan"
+	ps := pubsub.NewPubSub()
+	defer ps.UnSub(chanId)
+	ps.Sub(chanId, func(b []byte) {
+		fmt.Println(i, ":", string(b))
+	})
 }
+
 
 ```
 

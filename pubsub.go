@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	// chanId : { "token" : chan }
 	box  = make(map[string]map[string]chan string)
 	lock sync.Mutex
 )
@@ -46,6 +47,13 @@ func (ps *PubSub) UnSub(chanId string) {
 		delete(box[chanId], ps.token)
 		lock.Unlock()
 		close(ps.mc)
+	}
+}
+func Pub(chanId, str string) {
+	if v, ok := box[chanId]; ok {
+		for _, c := range v {
+			c <- str
+		}
 	}
 }
 func NewToken() string {
