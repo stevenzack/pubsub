@@ -1,65 +1,80 @@
 package pubsub
 
-import (
-	"crypto/md5"
-	"fmt"
-	"io"
-	"strconv"
-	"sync"
-	"time"
-)
+type Client struct {
+	Ch     chan interface{}
+	ChanId string
+}
+type ClientMap map[Client]bool
+
+type Msg struct {
+	ChanId string
+	Data   interface{}
+}
 
 var (
-	// chanId : { "token" : chan }
-	box  = make(map[string]map[string]chan string)
-	lock sync.Mutex
+	entering  = make(chan Client, 1)
+	leaving   = make(chan Client, 1)
+	messaging = make(chan Msg, 1)
+	shutdown  = make(chan bool)
 )
 
+func init() {
+	go broadcaster()
+}
+func broadcaster() {
+	chanIdMap := make(map[string]ClientMap)
+	for {
+		select {
+		case msg := <-messaging:
+			if climap, ok := chanIdMap[msg.ChanId]; ok && climap != nil {
+				println("chanid:", msg.ChanId, ", clientMap len:", len(climap))
+				for cli := range climap {
+					cli.Ch <- msg.Data
+				}
+			}
+		case cli := <-entering:
+			if climap, ok := chanIdMap[cli.ChanId]; !ok || climap == nil {
+				chanIdMap[cli.ChanId] = make(map[Client]bool)
+			}
+			chanIdMap[cli.ChanId][cli] = true
+		case cli := <-leaving:
+			if climap, ok := chanIdMap[cli.ChanId]; ok && climap != nil {
+				delete(chanIdMap[cli.ChanId], cli)
+				close(cli.Ch)
+			}
+		case <-shutdown:
+			for _, v := range chanIdMap {
+				if v != nil {
+					for c := range v {
+						close(c.Ch)
+					}
+				}
+			}
+			break
+		}
+	}
+}
+
 type PubSub struct {
-	token string
-	mc    chan string
+	c Client
 }
 
 func NewPubSub() *PubSub {
-	ps := &PubSub{}
-	ps.token = NewToken()
-	return ps
+	return &PubSub{c: Client{Ch: make(chan interface{}, 1)}}
 }
-func (ps *PubSub) Sub(chanId string, f func([]byte)) {
-	ps.mc = make(chan string, 1)
-	lock.Lock()
-	if v, ok := box[chanId]; ok {
-		if v == nil {
-			box[chanId] = make(map[string]chan string)
-		}
-	} else {
-		box[chanId] = make(map[string]chan string)
-	}
-	box[chanId][ps.token] = ps.mc
-	lock.Unlock()
-	for str := range ps.mc {
-		f([]byte(str))
+func (ps *PubSub) Sub(chanId string, f func(interface{})) {
+	ps.c.ChanId = chanId
+	entering <- ps.c
+	for data := range ps.c.Ch {
+		f(data)
 	}
 }
-func (ps *PubSub) UnSub(chanId string) {
-	if v, ok := box[chanId]; ok && v != nil {
-		lock.Lock()
-		delete(box[chanId], ps.token)
-		lock.Unlock()
-		close(ps.mc)
-	}
+func (ps *PubSub) UnSub() {
+	leaving <- ps.c
 }
-func Pub(chanId, str string) {
-	if v, ok := box[chanId]; ok {
-		for _, c := range v {
-			c <- str
-		}
-	}
+func Pub(chanId string, data interface{}) {
+	messaging <- Msg{ChanId: chanId, Data: data}
 }
-func NewToken() string {
-	ct := time.Now().UnixNano()
-	h := md5.New()
-	io.WriteString(h, strconv.FormatInt(ct, 10))
-	token := fmt.Sprintf("%x", h.Sum(nil))
-	return token
+func Shutdown() {
+	shutdown <- true
 }

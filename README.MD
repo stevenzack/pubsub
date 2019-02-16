@@ -5,28 +5,36 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/StevenZack/pubsub"
 )
 
 func main() {
-	go ls(0)
-	go ls(1)
-	go ls(2)
+	go handle(0)
+	go handle(1)
+	go handle(2)
 	s := ""
 	for {
 		fmt.Scanf("%s", &s)
-		pubsub.Pub("chan", s)
+		pubsub.Pub("chanId", s)
+		if s == "quit" {
+			break
+		}
 	}
 }
-func ls(i int) {
-	chanId := "chan"
+func handle(i int) {
 	ps := pubsub.NewPubSub()
-	defer ps.UnSub(chanId)
-	ps.Sub(chanId, func(b []byte) {
-		fmt.Println(i, ":", string(b))
+	ps.Sub("chanId", func(v interface{}) {
+		if s, ok := v.(string); ok {
+			println(i, ":", s)
+			if s == "quit" {
+				ps.UnSub()
+			}
+		} else {
+			println(i, ": type error")
+		}
 	})
 }
+
 
 
 ```
