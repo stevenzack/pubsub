@@ -27,7 +27,6 @@ func broadcaster() {
 		select {
 		case msg := <-messaging:
 			if climap, ok := chanIdMap[msg.ChanId]; ok && climap != nil {
-				println("chanid:", msg.ChanId, ", clientMap len:", len(climap))
 				for cli := range climap {
 					cli.Ch <- msg.Data
 				}
