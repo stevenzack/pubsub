@@ -1,5 +1,10 @@
 package pubsub
 
+import (
+	"errors"
+	"fmt"
+)
+
 type Server struct {
 	channelMap map[string]clientMap
 	entering   chan *Client
@@ -32,6 +37,7 @@ func (s *Server) Run() {
 					select {
 					case cli.receiver <- msg.data:
 					default:
+						fmt.Println("pubsub error: client not running")
 					}
 				}
 			}
@@ -40,15 +46,17 @@ func (s *Server) Run() {
 				delete(s.channelMap[cli.channelID], cli.id)
 				close(cli.receiver)
 			}
-		case <-s.shutdown:
-			for _, cm := range s.channelMap {
-				if cm != nil {
-					for _, cli := range cm {
-						close(cli.receiver)
+		case b := <-s.shutdown:
+			if b {
+				for _, cm := range s.channelMap {
+					if cm != nil {
+						for _, cli := range cm {
+							close(cli.receiver)
+						}
 					}
 				}
+				break
 			}
-			break
 		}
 	}
 }
@@ -57,13 +65,20 @@ func (s *Server) Start() {
 	go s.Run()
 }
 
-func (s *Server) Pub(chanID string, data interface{}) {
+func (s *Server) Pub(chanID string, data interface{}) error {
 	select {
 	case s.messaging <- &message{channelID: chanID, data: data}:
+		return nil
 	default:
+		return errors.New("not running")
 	}
 }
 
-func (s *Server) Stop() {
-	s.shutdown <- true
+func (s *Server) Stop() error {
+	select {
+	case s.shutdown <- true:
+		return nil
+	default:
+		return errors.New("not running")
+	}
 }
