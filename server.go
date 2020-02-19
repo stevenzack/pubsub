@@ -6,6 +6,7 @@ import (
 )
 
 type Server struct {
+	log        bool
 	channelMap map[string]clientMap
 	entering   chan *Client
 	leaving    chan *Client
@@ -16,22 +17,32 @@ type Server struct {
 func NewServer() *Server {
 	return &Server{
 		channelMap: make(map[string]clientMap),
-		entering:   make(chan *Client),
-		leaving:    make(chan *Client),
-		messaging:  make(chan *message),
-		shutdown:   make(chan bool),
+		entering:   make(chan *Client, 24),
+		leaving:    make(chan *Client, 24),
+		messaging:  make(chan *message, 24),
+		shutdown:   make(chan bool, 24),
 	}
+}
+
+func (s *Server) SetLog(b bool) {
+	s.log = b
 }
 
 func (s *Server) Run() {
 	for {
 		select {
 		case cli := <-s.entering:
+			if s.log {
+				fmt.Println("entering:")
+			}
 			if cm, ok := s.channelMap[cli.channelID]; !ok || cm == nil {
 				s.channelMap[cli.channelID] = newClientMap()
 			}
 			s.channelMap[cli.channelID][cli.id] = cli
 		case msg := <-s.messaging:
+			if s.log {
+				fmt.Println("messaging:", msg.data)
+			}
 			if clientmap, ok := s.channelMap[msg.channelID]; ok && clientmap != nil {
 				for _, cli := range clientmap {
 					select {
@@ -42,12 +53,18 @@ func (s *Server) Run() {
 				}
 			}
 		case cli := <-s.leaving:
+			if s.log {
+				fmt.Println("leaving:")
+			}
 			if cm, ok := s.channelMap[cli.channelID]; ok && cm != nil {
 				delete(s.channelMap[cli.channelID], cli.id)
 				close(cli.receiver)
 			}
 		case b := <-s.shutdown:
 			if b {
+				if s.log {
+					fmt.Println("shutdown:")
+				}
 				for _, cm := range s.channelMap {
 					if cm != nil {
 						for _, cli := range cm {
@@ -65,13 +82,8 @@ func (s *Server) Start() {
 	go s.Run()
 }
 
-func (s *Server) Pub(chanID string, data interface{}) error {
-	select {
-	case s.messaging <- &message{channelID: chanID, data: data}:
-		return nil
-	default:
-		return errors.New("not running")
-	}
+func (s *Server) Pub(chanID string, data interface{}) {
+	s.messaging <- &message{channelID: chanID, data: data}
 }
 
 func (s *Server) Stop() error {
