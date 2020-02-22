@@ -24,6 +24,12 @@ func NewServer() *Server {
 	}
 }
 
+func StartNewServer() *Server {
+	s := NewServer()
+	s.Start()
+	return s
+}
+
 func (s *Server) SetLog(b bool) {
 	s.log = b
 }
