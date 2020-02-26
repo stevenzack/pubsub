@@ -62,3 +62,7 @@ func (c *Client) closeChannel() {
 		close(c.receiver)
 	}
 }
+
+func (c *Client) ID() int64 {
+	return c.id
+}

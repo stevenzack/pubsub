@@ -51,8 +51,10 @@ func (s *Server) Run() {
 			}
 			if s.maxClientNum > 0 {
 				if len(s.channelMap[cli.channelID]) >= s.maxClientNum {
-					cli.closeChannel()
-					continue
+					pop := s.pop(cli.channelID)
+					if pop != nil {
+						pop.closeChannel()
+					}
 				}
 			}
 			s.channelMap[cli.channelID][cli.id] = cli
@@ -114,4 +116,19 @@ func (s *Server) Stop() error {
 
 func (s *Server) GetClientNum(chanID string) int {
 	return len(s.channelMap[chanID])
+}
+
+func (s *Server) pop(chanID string) *Client {
+	cm, ok := s.channelMap[chanID]
+	if !ok {
+		return nil
+	}
+	if len(cm) == 0 {
+		return nil
+	}
+	for k, cli := range cm {
+		delete(s.channelMap[chanID], k)
+		return cli
+	}
+	return nil
 }
