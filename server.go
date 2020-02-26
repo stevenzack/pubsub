@@ -6,12 +6,17 @@ import (
 )
 
 type Server struct {
-	log        bool
-	channelMap map[string]clientMap
-	entering   chan *Client
-	leaving    chan *Client
-	messaging  chan *message
-	shutdown   chan bool
+	log          bool
+	channelMap   map[string]clientMap
+	entering     chan *Client
+	leaving      chan *Client
+	messaging    chan *message
+	shutdown     chan bool
+	maxClientNum int
+}
+
+func (s *Server) SetMaxClientNum(i int) {
+	s.maxClientNum = i
 }
 
 func NewServer() *Server {
@@ -44,6 +49,12 @@ func (s *Server) Run() {
 			if cm, ok := s.channelMap[cli.channelID]; !ok || cm == nil {
 				s.channelMap[cli.channelID] = newClientMap()
 			}
+			if s.maxClientNum > 0 {
+				if len(s.channelMap[cli.channelID]) >= s.maxClientNum {
+					cli.closeChannel()
+					continue
+				}
+			}
 			s.channelMap[cli.channelID][cli.id] = cli
 		case msg := <-s.messaging:
 			if s.log {
@@ -64,7 +75,7 @@ func (s *Server) Run() {
 			}
 			if cm, ok := s.channelMap[cli.channelID]; ok && cm != nil {
 				delete(s.channelMap[cli.channelID], cli.id)
-				close(cli.receiver)
+				cli.closeChannel()
 			}
 		case b := <-s.shutdown:
 			if b {
@@ -74,7 +85,7 @@ func (s *Server) Run() {
 				for _, cm := range s.channelMap {
 					if cm != nil {
 						for _, cli := range cm {
-							close(cli.receiver)
+							cli.closeChannel()
 						}
 					}
 				}
@@ -99,4 +110,8 @@ func (s *Server) Stop() error {
 	default:
 		return errors.New("not running")
 	}
+}
+
+func (s *Server) GetClientNum(chanID string) int {
+	return len(s.channelMap[chanID])
 }

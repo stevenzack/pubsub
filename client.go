@@ -45,10 +45,20 @@ func (c *Client) Sub(chanID string, listener func(interface{})) error {
 }
 
 func (c *Client) UnSub() error {
+	c.closeChannel()
 	select {
 	case c.server.leaving <- c:
 		return nil
 	default:
 		return errors.New("server not running")
+	}
+}
+
+func (c *Client) closeChannel() {
+	select {
+	case <-c.receiver:
+		break
+	default:
+		close(c.receiver)
 	}
 }
