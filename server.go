@@ -14,6 +14,8 @@ type Server struct {
 	messaging    chan *message
 	shutdown     chan bool
 	maxClientNum int
+
+	isRunning bool
 }
 
 func (s *Server) SetMaxClientNum(i int) {
@@ -59,7 +61,8 @@ func (s *Server) loadOrCreate(chanID string) *clientMap {
 }
 
 func (s *Server) Run() {
-	for {
+	s.isRunning = true
+	for s.isRunning {
 		select {
 		case cli := <-s.entering:
 			if s.log {
@@ -112,6 +115,7 @@ func (s *Server) Run() {
 					}
 					return true
 				})
+				s.isRunning = false
 			}
 		}
 	}
