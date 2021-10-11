@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"context"
 	"sync"
 )
 
@@ -21,15 +22,18 @@ func (t *Topic) Broadcast() {
 }
 
 func (t *Topic) Subscribe(lifecycleGoroutine func(), onSignal func()) {
-	lifecycleEnd := make(chan struct{})
-	condSignal := make(chan struct{}, 1)
-
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		lifecycleGoroutine()
-		close(lifecycleEnd)
+		cancel()
 		t.Broadcast()
 	}()
 
+	t.SubscribeCtx(ctx, onSignal)
+}
+
+func (t *Topic) SubscribeCtx(ctx context.Context, onSignal func()) {
+	condSignal := make(chan struct{}, 1)
 	go func() {
 	READING:
 		for {
@@ -40,7 +44,7 @@ func (t *Topic) Subscribe(lifecycleGoroutine func(), onSignal func()) {
 
 			//check if lifecycleEnd closed
 			select {
-			case _, ok := <-lifecycleEnd:
+			case _, ok := <-ctx.Done():
 				if !ok {
 					break READING
 				}
@@ -48,6 +52,7 @@ func (t *Topic) Subscribe(lifecycleGoroutine func(), onSignal func()) {
 			}
 		}
 		close(condSignal)
+		println("reading finished")
 	}()
 
 LOOP:
@@ -57,7 +62,7 @@ LOOP:
 			if ok {
 				onSignal()
 			}
-		case <-lifecycleEnd:
+		case <-ctx.Done():
 			break LOOP
 		}
 	}
