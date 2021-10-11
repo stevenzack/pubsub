@@ -1,5 +1,3 @@
 module github.com/StevenZack/pubsub
 
-go 1.14
-
-require github.com/StevenZack/tools v1.9.4
+go 1.17
