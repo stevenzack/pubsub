@@ -67,3 +67,7 @@ LOOP:
 		}
 	}
 }
+
+func (t *Topic) SubscribeForever(onSignal func()) {
+	t.SubscribeCtx(context.Background(), onSignal)
+}

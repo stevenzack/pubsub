@@ -21,7 +21,7 @@ func (s *Server) SubscribeTopics(topics []string, lifecycleGoroutine func(), onS
 	go func() {
 		lifecycleGoroutine()
 		cancel()
-		s.BroadcastAll(topics)
+		s.BroadcastMultiple(topics)
 	}()
 
 	for _, topicName := range topics {
@@ -46,7 +46,7 @@ func (s *Server) loadTopic(name string) *Topic {
 	return topic
 }
 
-func (s *Server) BroadcastAll(topics []string) {
+func (s *Server) BroadcastMultiple(topics []string) {
 	for _, topicName := range topics {
 		if topic, ok := s.topics[topicName]; ok {
 			topic.Broadcast()
