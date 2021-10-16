@@ -52,7 +52,6 @@ func (t *Topic) SubscribeCtx(ctx context.Context, onSignal func()) {
 			}
 		}
 		close(condSignal)
-		println("reading finished")
 	}()
 
 LOOP:
